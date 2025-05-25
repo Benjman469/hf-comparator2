@@ -1,70 +1,54 @@
-import { chromium } from 'playwright';
+import chromium from 'chrome-aws-lambda';
+import playwright from 'playwright-core';
 
 export default async function handler(req, res) {
-  console.log('Début handler /api/compare');
+  const { char1, char2, realm = 'Archimonde', region = 'EU' } = req.query;
+
+  if (!char1 || !char2) {
+    return res.status(400).json({ error: 'Paramètres requis : char1, char2' });
+  }
+
   let browser = null;
 
-  try {
-    const { char1, char2, realm = 'Archimonde', region = 'EU' } = req.query;
-    console.log('Params reçus:', { char1, char2, realm, region });
+  async function fetchHFPoints(character) {
+    const url = `https://www.dataforazeroth.com/characters/${region}/${realm}/${character}`;
 
-    if (!char1 || !char2) {
-      console.log('Paramètres manquants');
-      return res.status(400).json({ error: 'Paramètres requis : char1, char2' });
-    }
+    try {
+      const page = await browser.newPage();
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('div.card-body', { timeout: 30000 });
 
-    async function fetchHFPoints(character) {
-      const url = `https://www.dataforazeroth.com/characters/${region}/${realm}/${character}`;
-      console.log(`Récupération points pour ${character} via ${url}`);
+      const blocks = await page.$$eval('div.card-body', els => els.map(el => el.innerText));
 
-      try {
-        const page = await browser.newPage();
-        await page.goto(url, { waitUntil: 'networkidle' });
-
-        // On attend un petit peu pour que la page soit bien chargée (optionnel)
-        await page.waitForTimeout(1500);
-
-        // Récupérer le texte des div.card-body
-        const blocks = await page.$$eval('div.card-body', els => els.map(el => el.innerText));
-
-        let points = null;
-        for (const text of blocks) {
-          if (text.includes('Achievement Points')) {
-            console.log(`Texte complet Achievement Points pour ${character} :\n${text}`);
-
-            // Extraire la partie après "Achievement Points"
-            const after = text.split('Achievement Points')[1];
-            if (after) {
-              // Prendre la première ligne après "Achievement Points"
-              const firstLine = after.trim().split('\n')[0];
-              // Nettoyer les espaces (normaux et insécables)
-              const cleaned = firstLine.replace(/[\s\u202f]/g, '');
-              // Parse en nombre entier
-              points = parseInt(cleaned, 10);
-            }
+      let points = null;
+      for (const text of blocks) {
+        if (text.includes("Achievement Points")) {
+          const match = text.match(/Achievement Points\s*([\d\s\u202f]+)/);
+          if (match && match[1]) {
+            // Extraire uniquement la partie chiffre avant la virgule ou autre texte parasite
+            const cleanNumber = match[1].trim().split(/\s+/).slice(0, 2).join('').replace(/[\s\u202f]/g, '');
+            points = parseInt(cleanNumber, 10);
             break;
           }
         }
-
-        await page.close();
-
-        if (!points) {
-          console.log(`Points non trouvés pour ${character}`);
-          return 'Non trouvé';
-        }
-
-        console.log(`Points pour ${character}: ${points}`);
-        return points;
-
-      } catch (error) {
-        console.error(`Erreur fetchHFPoints pour ${character}:`, error);
-        throw error;
       }
-    }
 
-    browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      await page.close();
+
+      return points ?? 'Non trouvé';
+    } catch (error) {
+      console.error(`Erreur récupération pour ${character}:`, error);
+      throw error;
+    }
+  }
+
+  try {
+    const executablePath = await chromium.executablePath;
+
+    browser = await playwright.chromium.launch({
+      args: chromium.args,
+      executablePath: executablePath || undefined,
+      headless: chromium.headless,
     });
 
     const [points1, points2] = await Promise.all([
@@ -87,12 +71,11 @@ export default async function handler(req, res) {
       result.winner = points1 === points2 ? 'Egalité' : (points1 > points2 ? char1 : char2);
     }
 
-    console.log('Résultat final:', result);
     res.status(200).json(result);
 
   } catch (error) {
-    console.error('Erreur globale dans /api/compare:', error);
     if (browser) await browser.close();
+    console.error('Erreur globale dans /api/compare:', error);
     res.status(500).json({ error: error.message || 'Erreur serveur' });
   }
 }

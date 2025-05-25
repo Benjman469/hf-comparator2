@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Comparaison Hauts Faits WoW</title>
 <style>
-  /* Ton CSS ici, inchangé */
   body {
     background: url('https://i.imgur.com/rAa3098.png') no-repeat center center fixed;
     background-size: cover;
@@ -129,11 +128,11 @@
         return;
       }
 
-      const points1 = data.characters[0]?.points ?? 'Non trouvé';
-      const points2 = data.characters[1]?.points ?? 'Non trouvé';
+      const points1 = typeof data.characters[0]?.points === 'number' ? data.characters[0].points : null;
+      const points2 = typeof data.characters[1]?.points === 'number' ? data.characters[1].points : null;
 
-      document.getElementById('points1').textContent = points1;
-      document.getElementById('points2').textContent = points2;
+      document.getElementById('points1').textContent = points1 ?? 'Non trouvé';
+      document.getElementById('points2').textContent = points2 ?? 'Non trouvé';
 
       const playBtn = document.getElementById('playBtn');
 
@@ -141,7 +140,7 @@
         document.getElementById('winner').textContent = '🤝 C’est une égalité parfaite !';
         document.getElementById('diffText').textContent = '';
         playBtn.style.display = 'none';
-      } else {
+      } else if (points1 !== null && points2 !== null) {
         document.getElementById('winner').textContent = `🏆 Le vainqueur est : ${data.winner} ! 🏆`;
 
         const diff = Math.abs(points1 - points2);
@@ -158,6 +157,10 @@
           `${leader} a ${diff} points de HF d'avance, mais ${challenger} va bientôt lui défourailler son record !`;
 
         playBtn.style.display = 'inline-block';
+      } else {
+        document.getElementById('winner').textContent = '';
+        document.getElementById('diffText').textContent = '';
+        playBtn.style.display = 'none';
       }
     }
 

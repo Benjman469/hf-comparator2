@@ -2,10 +2,12 @@
   "name": "hf-comparator",
   "version": "1.0.0",
   "scripts": {
-    "postinstall": "npx playwright install",
-    "start": "vercel dev"
+    "start": "vercel dev",
+    "postinstall": "npx playwright install-deps && npx playwright install"
   },
   "dependencies": {
-    "playwright": "^1.52.0"
+    "chrome-aws-lambda": "^10.1.0",
+    "playwright-core": "^10.4.0",
+    "node-fetch": "^3.3.1"  /* si besoin pour fetch */
   }
 }
