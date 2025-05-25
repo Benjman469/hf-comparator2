@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import { chromium } from 'playwright';
 
 export default async function handler(req, res) {
   console.log('Début handler /api/compare');
@@ -19,44 +19,50 @@ export default async function handler(req, res) {
 
       try {
         const page = await browser.newPage();
-        await page.goto(url, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('h1.text-nowrap', { timeout: 30000 });
+        await page.goto(url, { waitUntil: 'networkidle' });
 
-        const textBlocks = await page.$$eval('div.card-body', blocks =>
-          blocks.map(b => b.innerText)
-        );
+        // On attend un petit peu pour que la page soit bien chargée (optionnel)
+        await page.waitForTimeout(1500);
+
+        // Récupérer le texte des div.card-body
+        const blocks = await page.$$eval('div.card-body', els => els.map(el => el.innerText));
 
         let points = null;
-        for (const block of textBlocks) {
-          if (block.includes("Achievement Points")) {
-            const match = block.match(/Achievement Points\s*([\d\s\u202f]+)/);
-            if (match && match[1]) {
-              points = match[1].trim();
-              break;
+        for (const text of blocks) {
+          if (text.includes('Achievement Points')) {
+            console.log(`Texte complet Achievement Points pour ${character} :\n${text}`);
+
+            // Extraire la partie après "Achievement Points"
+            const after = text.split('Achievement Points')[1];
+            if (after) {
+              // Prendre la première ligne après "Achievement Points"
+              const firstLine = after.trim().split('\n')[0];
+              // Nettoyer les espaces (normaux et insécables)
+              const cleaned = firstLine.replace(/[\s\u202f]/g, '');
+              // Parse en nombre entier
+              points = parseInt(cleaned, 10);
             }
+            break;
           }
         }
+
+        await page.close();
 
         if (!points) {
           console.log(`Points non trouvés pour ${character}`);
           return 'Non trouvé';
         }
 
-        const firstPart = points.split(/\s+/).slice(0, 2).join(' ');
-        const cleanNumber = firstPart.replace(/[\s\u202f]/g, '');
-        const number = parseInt(cleanNumber, 10);
+        console.log(`Points pour ${character}: ${points}`);
+        return points;
 
-        await page.close();
-
-        console.log(`Points pour ${character}: ${number}`);
-        return number;
       } catch (error) {
         console.error(`Erreur fetchHFPoints pour ${character}:`, error);
         throw error;
       }
     }
 
-    browser = await puppeteer.launch({
+    browser = await chromium.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
