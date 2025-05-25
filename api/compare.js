@@ -25,7 +25,7 @@ export default async function handler(req, res) {
         if (text.includes("Achievement Points")) {
           const match = text.match(/Achievement Points\s*([\d\s\u202f]+)/);
           if (match && match[1]) {
-            // Extraire uniquement la partie chiffre avant la virgule ou autre texte parasite
+            // Extraire uniquement la partie chiffre, en ignorant les éventuels suffixes
             const cleanNumber = match[1].trim().split(/\s+/).slice(0, 2).join('').replace(/[\s\u202f]/g, '');
             points = parseInt(cleanNumber, 10);
             break;
