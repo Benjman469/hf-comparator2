@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Comparaison Hauts Faits WoW</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&display=swap');
+  /* Ton CSS ici, inchangé */
   body {
     background: url('https://i.imgur.com/rAa3098.png') no-repeat center center fixed;
     background-size: cover;
@@ -96,13 +96,16 @@
   </audio>
 
   <script>
+    console.log('Script JS chargé');
+
     async function fetchHFPoints(char1, char2, realm = 'Archimonde', region = 'EU') {
-      const baseURL = 'http://localhost:3000'; // Mets ici ton URL Vercel finale !
-      const url = `${baseURL}/api/compare?char1=${encodeURIComponent(char1)}&char2=${encodeURIComponent(char2)}&realm=${encodeURIComponent(realm)}&region=${encodeURIComponent(region)}`;
+      const baseURL = '/api';
+      const url = `${baseURL}/compare?char1=${encodeURIComponent(char1)}&char2=${encodeURIComponent(char2)}&realm=${encodeURIComponent(realm)}&region=${encodeURIComponent(region)}`;
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`);
         const data = await res.json();
+        console.log('Réponse API:', data);
         return data;
       } catch (err) {
         console.error('Erreur fetch:', err);
@@ -111,17 +114,18 @@
     }
 
     async function displayComparison() {
+      console.log('displayComparison called');
       const char1 = 'Benjman';
       const char2 = 'Percevent';
 
       const data = await fetchHFPoints(char1, char2);
 
       if (!data) {
+        console.log('Aucune donnée reçue.');
         document.getElementById('points1').textContent = 'Erreur';
         document.getElementById('points2').textContent = 'Erreur';
         document.getElementById('winner').textContent = 'Impossible de récupérer les données.';
         document.getElementById('diffText').textContent = '';
-        document.getElementById('playBtn').style.display = 'none';
         return;
       }
 
