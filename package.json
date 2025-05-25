@@ -1,12 +1,10 @@
 {
-  "name": "hf-comparator-vercel",
+  "name": "hf-comparator",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
     "start": "vercel dev"
   },
   "dependencies": {
-    "chrome-aws-lambda": "^10.1.0",
-    "puppeteer-core": "^20.9.0"
+    "puppeteer": "^20.9.0"
   }
 }

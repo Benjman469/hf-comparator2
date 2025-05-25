@@ -1,5 +1,4 @@
-import chromium from 'chrome-aws-lambda';
-import puppeteer from 'puppeteer-core';
+import puppeteer from 'puppeteer';
 
 export default async function handler(req, res) {
   const { char1, char2, realm = 'Archimonde', region = 'EU' } = req.query;
@@ -50,9 +49,8 @@ export default async function handler(req, res) {
 
   try {
     browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath,
-      headless: chromium.headless,
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 
     const [points1, points2] = await Promise.all([
