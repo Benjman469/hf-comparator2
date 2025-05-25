@@ -8,6 +8,6 @@
   "dependencies": {
     "chrome-aws-lambda": "^10.1.0",
     "playwright-core": "^10.4.0",
-    "node-fetch": "^3.3.1"  /* si besoin pour fetch */
+    "node-fetch": "^3.3.1"
   }
 }
