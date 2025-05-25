@@ -1,53 +1,61 @@
 import puppeteer from 'puppeteer';
 
 export default async function handler(req, res) {
-  const { char1, char2, realm = 'Archimonde', region = 'EU' } = req.query;
-
-  if (!char1 || !char2) {
-    return res.status(400).json({ error: 'Paramètres requis : char1, char2' });
-  }
-
+  console.log('Début handler /api/compare');
   let browser = null;
 
-  async function fetchHFPoints(character) {
-    const url = `https://www.dataforazeroth.com/characters/${region}/${realm}/${character}`;
+  try {
+    const { char1, char2, realm = 'Archimonde', region = 'EU' } = req.query;
+    console.log('Params reçus:', { char1, char2, realm, region });
 
-    try {
-      const page = await browser.newPage();
+    if (!char1 || !char2) {
+      console.log('Paramètres manquants');
+      return res.status(400).json({ error: 'Paramètres requis : char1, char2' });
+    }
 
-      await page.goto(url, { waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('h1.text-nowrap', { timeout: 30000 });
+    async function fetchHFPoints(character) {
+      const url = `https://www.dataforazeroth.com/characters/${region}/${realm}/${character}`;
+      console.log(`Récupération points pour ${character} via ${url}`);
 
-      const textBlocks = await page.$$eval('div.card-body', blocks =>
-        blocks.map(b => b.innerText)
-      );
+      try {
+        const page = await browser.newPage();
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('h1.text-nowrap', { timeout: 30000 });
 
-      let points = null;
-      for (const block of textBlocks) {
-        if (block.includes("Achievement Points")) {
-          const match = block.match(/Achievement Points\s*([\d\s\u202f]+)/);
-          if (match && match[1]) {
-            points = match[1].trim();
-            break;
+        const textBlocks = await page.$$eval('div.card-body', blocks =>
+          blocks.map(b => b.innerText)
+        );
+
+        let points = null;
+        for (const block of textBlocks) {
+          if (block.includes("Achievement Points")) {
+            const match = block.match(/Achievement Points\s*([\d\s\u202f]+)/);
+            if (match && match[1]) {
+              points = match[1].trim();
+              break;
+            }
           }
         }
+
+        if (!points) {
+          console.log(`Points non trouvés pour ${character}`);
+          return 'Non trouvé';
+        }
+
+        const firstPart = points.split(/\s+/).slice(0, 2).join(' ');
+        const cleanNumber = firstPart.replace(/[\s\u202f]/g, '');
+        const number = parseInt(cleanNumber, 10);
+
+        await page.close();
+
+        console.log(`Points pour ${character}: ${number}`);
+        return number;
+      } catch (error) {
+        console.error(`Erreur fetchHFPoints pour ${character}:`, error);
+        throw error;
       }
-
-      if (!points) return 'Non trouvé';
-
-      const firstPart = points.split(/\s+/).slice(0, 2).join(' ');
-      const cleanNumber = firstPart.replace(/[\s\u202f]/g, '');
-      const number = parseInt(cleanNumber, 10);
-
-      await page.close();
-
-      return number;
-    } catch (error) {
-      return 'Non trouvé';
     }
-  }
 
-  try {
     browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -57,6 +65,8 @@ export default async function handler(req, res) {
       fetchHFPoints(char1),
       fetchHFPoints(char2),
     ]);
+
+    await browser.close();
 
     const result = {
       region,
@@ -71,11 +81,12 @@ export default async function handler(req, res) {
       result.winner = points1 === points2 ? 'Egalité' : (points1 > points2 ? char1 : char2);
     }
 
-    await browser.close();
-
+    console.log('Résultat final:', result);
     res.status(200).json(result);
+
   } catch (error) {
+    console.error('Erreur globale dans /api/compare:', error);
     if (browser) await browser.close();
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Erreur serveur' });
   }
 }
